@@ -1,0 +1,3 @@
+interface EventObserver {
+    void onEventListChanged();
+}

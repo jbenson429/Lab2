@@ -14,7 +14,7 @@ class AddEventModal extends JDialog {
         this.eventListPanel = eventListPanel;
 
         setTitle("Add Event");
-        setSize(500, 400); // Larger window size
+        setSize(500, 400);
         setLocationRelativeTo(null);
 
         JPanel panel = new JPanel();
@@ -37,7 +37,7 @@ class AddEventModal extends JDialog {
         panel.add(addButton);
 
         add(panel);
-        setModal(true); // Make it a modal dialog
+        setModal(true);
         setVisible(true);
     }
 
@@ -47,14 +47,19 @@ class AddEventModal extends JDialog {
             LocalDateTime dateTime = LocalDateTime.parse(dateField.getText(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
             String location = locationField.getText();
 
-            // Add the event, either a Deadline or Meeting depending on the input
+            Event event;
+
             if (location.isEmpty()) {
-                eventListPanel.addEvent(new Deadline(name, dateTime));
+                event = EventFactory.createEvent("deadline", name, dateTime);
             } else {
-                eventListPanel.addEvent(new Meeting(name, dateTime, dateTime.plusHours(1), location)); // Example duration of 1 hour
+                LocalDateTime endDateTime = dateTime.plusHours(1);
+                event = EventFactory.createEvent("meeting", name, dateTime, endDateTime, location);
             }
 
-            dispose(); // Close the modal
+            //  Notify via EventManager instead of modifying the list directly
+            eventListPanel.getEventManager().addEvent(event);
+
+            dispose();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Invalid input. Please try again.");
         }

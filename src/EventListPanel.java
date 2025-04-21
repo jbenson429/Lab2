@@ -3,12 +3,10 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Comparator;
 
-/// EventListPanel class
-class EventListPanel extends JPanel {
-    private ArrayList<Event> events;
+class EventListPanel extends JPanel implements EventObserver {
+    private EventManager eventManager;
     private JPanel displayPanel;
     private JComboBox<String> sortDropDown;
     private JCheckBox filterCompleted;
@@ -16,9 +14,10 @@ class EventListPanel extends JPanel {
     private JCheckBox filterMeetings;
     private JButton addEventButton;
 
-    public EventListPanel() {
-        // Initialize events list as empty
-        events = new ArrayList<>();
+    public EventListPanel(EventManager eventManager) {
+        this.eventManager = eventManager;
+        eventManager.addObserver(this);
+
         setLayout(new BorderLayout());
 
         JPanel controlPanel = new JPanel();
@@ -48,9 +47,10 @@ class EventListPanel extends JPanel {
         displayPanel = new JPanel();
         displayPanel.setLayout(new BoxLayout(displayPanel, BoxLayout.Y_AXIS));
         add(displayPanel, BorderLayout.CENTER);
+
+        updateDisplay();
     }
 
-    // Method to show the event type dialog (Deadline or Meeting)
     private void showEventTypeDialog() {
         String[] options = {"Deadline", "Meeting"};
         int choice = JOptionPane.showOptionDialog(this,
@@ -62,79 +62,83 @@ class EventListPanel extends JPanel {
                 options,
                 options[0]);
 
-        if (choice == 0) { // Deadline chosen
+        if (choice == 0) {
             showDeadlineInputDialog();
-        } else if (choice == 1) { // Meeting chosen
+        } else if (choice == 1) {
             showMeetingInputDialog();
         }
     }
 
-    // Method to handle Deadline input
     private void showDeadlineInputDialog() {
-        String name = JOptionPane.showInputDialog(this, "Enter deadline name:");
-        String dateInput = JOptionPane.showInputDialog(this, "Enter deadline time (yyyy-MM-dd HH:mm):");
+        try {
+            String name = JOptionPane.showInputDialog(this, "Enter deadline name:");
+            String dateInput = JOptionPane.showInputDialog(this, "Enter deadline time (yyyy-MM-dd HH:mm):");
 
-        if (name != null && !name.isEmpty() && dateInput != null && !dateInput.isEmpty()) {
-            try {
+            if (name != null && dateInput != null && !name.isEmpty() && !dateInput.isEmpty()) {
                 LocalDateTime deadlineTime = LocalDateTime.parse(dateInput, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-                addEvent(new Deadline(name, deadlineTime));
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Invalid date format. Please use yyyy-MM-dd HH:mm.");
+                Event deadline = EventFactory.createEvent("deadline", name, deadlineTime);
+                eventManager.addEvent(deadline);
             }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Invalid date format. Please use yyyy-MM-dd HH:mm.");
         }
     }
 
-    // Method to handle Meeting input
     private void showMeetingInputDialog() {
-        String name = JOptionPane.showInputDialog(this, "Enter meeting name:");
-        String startDateInput = JOptionPane.showInputDialog(this, "Enter meeting start time (yyyy-MM-dd HH:mm):");
-        String endDateInput = JOptionPane.showInputDialog(this, "Enter meeting end time (yyyy-MM-dd HH:mm):");
-        String location = JOptionPane.showInputDialog(this, "Enter meeting location:");
+        try {
+            String name = JOptionPane.showInputDialog(this, "Enter meeting name:");
+            String startDateInput = JOptionPane.showInputDialog(this, "Enter meeting start time (yyyy-MM-dd HH:mm):");
+            String endDateInput = JOptionPane.showInputDialog(this, "Enter meeting end time (yyyy-MM-dd HH:mm):");
+            String location = JOptionPane.showInputDialog(this, "Enter meeting location:");
 
-        if (name != null && !name.isEmpty() && startDateInput != null && !startDateInput.isEmpty() && endDateInput != null && !endDateInput.isEmpty() && location != null && !location.isEmpty()) {
-            try {
+            if (name != null && startDateInput != null && endDateInput != null && location != null &&
+                    !name.isEmpty() && !startDateInput.isEmpty() && !endDateInput.isEmpty() && !location.isEmpty()) {
+
                 LocalDateTime startTime = LocalDateTime.parse(startDateInput, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
                 LocalDateTime endTime = LocalDateTime.parse(endDateInput, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-                addEvent(new Meeting(name, startTime, endTime, location));
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Invalid date format. Please use yyyy-MM-dd HH:mm.");
+                Event meeting = EventFactory.createEvent("meeting", name, startTime, endTime, location);
+                eventManager.addEvent(meeting);
             }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Invalid date format. Please use yyyy-MM-dd HH:mm.");
         }
     }
 
-    public void addEvent(Event event) {
-        events.add(event);
-        updateDisplay();
-    }
-
-    // Method to remove event from the list and update display
     public void removeEvent(Event event) {
-        events.remove(event);
-        updateDisplay();
+        eventManager.removeEvent(event);
     }
 
     private void sortEvents() {
-        if (sortDropDown.getSelectedItem().equals("Sort by Name")) {
-            events.sort(Comparator.comparing(Event::getName));
-        } else if (sortDropDown.getSelectedItem().equals("Sort by Reverse Name")) {
-            events.sort(Comparator.comparing(Event::getName).reversed());
+        if ("Sort by Name".equals(sortDropDown.getSelectedItem())) {
+            eventManager.getEvents().sort(Comparator.comparing(Event::getName));
+        } else if ("Sort by Reverse Name".equals(sortDropDown.getSelectedItem())) {
+            eventManager.getEvents().sort(Comparator.comparing(Event::getName).reversed());
         } else {
-            events.sort(Comparator.naturalOrder());
+            eventManager.getEvents().sort(Comparator.naturalOrder());
         }
         updateDisplay();
     }
 
     private void updateDisplay() {
         displayPanel.removeAll();
-        for (Event event : events) {
+        for (Event event : eventManager.getEvents()) {
             if ((filterCompleted.isSelected() && event instanceof Completable && ((Completable) event).isComplete()) ||
                     (filterDeadlines.isSelected() && event instanceof Deadline) ||
                     (filterMeetings.isSelected() && event instanceof Meeting)) {
                 continue;
             }
-            displayPanel.add(new EventPanel(event, this));  // Pass EventListPanel to EventPanel
+            displayPanel.add(new EventPanel(event, this));
         }
         displayPanel.revalidate();
         displayPanel.repaint();
+    }
+
+    public EventManager getEventManager() {
+        return eventManager;
+    }
+
+    @Override
+    public void onEventListChanged() {
+        updateDisplay();
     }
 }

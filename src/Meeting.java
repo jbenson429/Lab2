@@ -5,21 +5,11 @@ import java.time.LocalDateTime;
 class Meeting extends Event implements Completable {
     private LocalDateTime endDateTime;
     private String location;
-    private boolean complete;
+    private boolean completed;
 
-    public Meeting(String name, LocalDateTime start, LocalDateTime end, String location) {
-        super(name, start);
-        this.endDateTime = end;
-        this.location = location;
-        this.complete = false;
-    }
-
-    public void complete() {
-        this.complete = true;
-    }
-
-    public boolean isComplete() {
-        return complete;
+    public Meeting(String name, LocalDateTime dateTime) {
+        super(name, dateTime);
+        this.completed = false;
     }
 
     public LocalDateTime getEndTime() {
@@ -44,6 +34,17 @@ class Meeting extends Event implements Completable {
 
     @Override
     public String getName() {
-        return name;
+        return "Meeting: " + name;
     }
+
+    @Override
+    public void complete() {
+        completed = true;
+    }
+
+    @Override
+    public boolean isComplete() {
+        return completed;
+    }
+
 }
